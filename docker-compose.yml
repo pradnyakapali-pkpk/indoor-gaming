@@ -1,0 +1,39 @@
+# One command to run everything:  docker compose up --build   ->  http://localhost:3000
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: indoorgamingarena
+      MYSQL_USER: arena
+      MYSQL_PASSWORD: arena_pass
+    volumes:
+      - dbdata:/var/lib/mysql
+      # Executed automatically on the first start (empty volume only)
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uarena", "-parena_pass"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_USER: arena
+      DB_PASSWORD: arena_pass
+      DB_NAME: indoorgamingarena
+      API_KEY: ${API_KEY:-}
+    ports:
+      - "3000:3000"
+
+volumes:
+  dbdata:
